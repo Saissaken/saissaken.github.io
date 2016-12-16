@@ -58,25 +58,23 @@
             width: 25%;
         }
 
-        .img1, .img2 {
+        .img1,
+        .img2 {
             width: 12.5%;
         }
 
         @media screen and (max-width: 780px) {
-
             .img0 {
                 width: 50%;
             }
-
-            .img0:first-of-type, .img0:last-of-type {
+            .img0:first-of-type,
+            .img0:last-of-type {
                 display: none;
             }
-
-            .img1, .img2 {
+            .img1,
+            .img2 {
                 width: 25%;
             }
-
-
         }
 
     </style>
@@ -88,127 +86,140 @@
 
     <div id="images" class="images"></div>
     <script>
-        window.onload = function() {
-            var matrix = [
-                [0, 0, 0, 0],
-                [0, 1, 1, 1, 1, 0],
-                [0, 1, 2, 2, 1, 0],
-                [0, 1, 2, 2, 1, 0],
-                [0, 1, 1, 1, 1, 0],
-                [0, 0, 0, 0]
-            ]
+        (function() {
+            'use strict';
+            console.log("app.js");
 
-            var filters = [{
-                name: "hue-rotate",
-                symbol: "deg",
-                min: 0,
-                max: 360
-            }, {
-                name: "saturate",
-                symbol: "",
-                min: 0,
-                max: 20
-            }, {
-                name: "brightness",
-                symbol: "%",
-                min: 100,
-                max: 300
-            }, {
-                name: "contrast",
-                symbol: "%",
-                min: 100,
-                max: 300
-            }, {
-                name: "sepia",
-                symbol: "%",
-                min: 0,
-                max: 100
-            }];
+            window.onload = function() {
+                var matrix = [
+                    [0, 0, 0, 0],
+                    [0, 1, 1, 1, 1, 0],
+                    [0, 1, 2, 2, 1, 0],
+                    [0, 1, 2, 2, 1, 0],
+                    [0, 1, 1, 1, 1, 0],
+                    [0, 0, 0, 0]
+                ]
 
-            var ele = document.getElementById("images");
+                var filters = [{
+                    name: "hue-rotate",
+                    symbol: "deg",
+                    min: 0,
+                    max: 360
+                }, {
+                    name: "saturate",
+                    symbol: "",
+                    min: 0,
+                    max: 20
+                }, {
+                    name: "brightness",
+                    symbol: "%",
+                    min: 100,
+                    max: 300
+                }, {
+                    name: "contrast",
+                    symbol: "%",
+                    min: 100,
+                    max: 300
+                }, {
+                    name: "sepia",
+                    symbol: "%",
+                    min: 0,
+                    max: 100
+                }];
 
-            for (var i = 0; i < matrix.length; i++) {
-                var div = document.createElement("div");
-                for (var j = 0; j < matrix[i].length; j++) {
-                    var img = document.createElement("img");
-                    img.src = "lulz" + matrix[i][j] + ".gif";
-                    img.className = "img" + matrix[i][j];
-                    div.appendChild(img);
+                var ele = document.getElementById("images");
+
+                for (var i = 0; i < matrix.length; i++) {
+                    var div = document.createElement("div");
+                    for (var j = 0; j < matrix[i].length; j++) {
+                        var img = document.createElement("img");
+                        img.src = "lulz" + matrix[i][j] + ".gif";
+                        img.className = "img" + matrix[i][j];
+                        div.appendChild(img);
+                    }
+                    ele.appendChild(div);
                 }
-                ele.appendChild(div);
+
+                var audioCtx = new AudioContext();
+                var analyser = audioCtx.createAnalyser();
+                var source = audioCtx.createMediaElementSource(audio);
+                source.connect(analyser);
+                analyser.connect(audioCtx.destination);
+                analyser.fftSize = 32;
+
+                var frequencyData = new Uint8Array(analyser.frequencyBinCount);
+
+                var last_n = 0;
+                var last_change = 0;
+
+                var current_filter = 0;
+
+                var imgs_filters = "";
+
+                function renderFrame() {
+                    analyser.getByteFrequencyData(frequencyData);
+
+                    var n = (frequencyData[8] * 100) / 256;
+                    var diff = last_n - n;
+                    if (diff < 0) diff *= -1;
+                    last_n = n;
+                    last_change--;
+
+                    var imgs = document.body.getElementsByTagName("img");
+
+                    if (diff > 3 && last_change < 0) {
+                        var new_filter = current_filter;
+                        while (new_filter == current_filter) {
+                            new_filter = Math.floor(Math.random() * filters.length);
+                        }
+
+                        last_change = 20;
+                        current_filter = new_filter;
+
+                        var items_to_change = Math.floor((n / 100) * imgs.length);
+                        imgs_filters = "";
+                        while (items_to_change > 0) {
+                            var rnd = Math.floor(Math.random() * imgs.length);
+                            items_to_change--;
+                            imgs_filters += rnd + ",";
+                        }
+                    }
+
+                    var filter = filters[current_filter];
+                    var total = filter.max - filter.min;
+                    var perc = (n / 100) * total;
+                    var filter_n = filter.min + perc;
+
+                    for (var i = 0; i < imgs.length; i++) {
+                        var img = imgs[i];
+                        if (imgs_filters.indexOf(i + ",") != -1) {
+                            img.style.filter = filter.name + "(" + filter_n + filter.symbol + ")";
+                            img.style.transform = "rotateY(180deg)";
+                        } else {
+                            img.style.filter = "none";
+                            img.style.transform = "rotateY(0deg)";
+                        }
+                    }
+
+                    requestAnimationFrame(renderFrame);
+                }
+                audio.pause();
+                document.body.addEventListener("click", function() {
+                    document.body.getElementsByClassName("dialog")[0].style.display = "none";
+                    audio.play();
+                });
+                // audio.play();
+                renderFrame();
+            };
+
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker
+                    .register('./service-worker.js')
+                    .then(function() {
+                        console.log('Service Worker Registered');
+                    });
             }
-
-            audioCtx = new AudioContext();
-            analyser = audioCtx.createAnalyser();
-            source = audioCtx.createMediaElementSource(audio);
-            source.connect(analyser);
-            analyser.connect(audioCtx.destination);
-            analyser.fftSize = 32;
-
-            var frequencyData = new Uint8Array(analyser.frequencyBinCount);
-
-            var last_n = 0;
-            var last_change = 0;
-
-            var current_filter = 0;
-
-            var imgs_filters = "";
-
-            function renderFrame() {
-                analyser.getByteFrequencyData(frequencyData);
-
-                var n = (frequencyData[8] * 100) / 256;
-                var diff = last_n - n;
-                if (diff < 0) diff *= -1;
-                last_n = n;
-                last_change--;
-
-                var imgs = document.body.getElementsByTagName("img");
-
-                if (diff > 3 && last_change < 0) {
-                    var new_filter = current_filter;
-                    while (new_filter == current_filter) {
-                        new_filter = Math.floor(Math.random() * filters.length);
-                    }
-
-                    last_change = 20;
-                    current_filter = new_filter;
-
-                    var items_to_change = Math.floor((n / 100) * imgs.length);
-                    imgs_filters = "";
-                    while (items_to_change > 0) {
-                        var rnd = Math.floor(Math.random() * imgs.length);
-                        items_to_change--;
-                        imgs_filters += rnd + ",";
-                    }
-                }
-
-                var filter = filters[current_filter];
-                var total = filter.max - filter.min;
-                var perc = (n / 100) * total;
-                var filter_n = filter.min + perc;
-
-                for (var i = 0; i < imgs.length; i++) {
-                    var img = imgs[i];
-                    if (imgs_filters.indexOf(i+",") != -1) {
-                        img.style.filter = filter.name + "(" + filter_n + filter.symbol + ")";
-                        img.style.transform = "rotateY(180deg)";
-                    } else {
-                        img.style.filter = "none";
-                        img.style.transform = "rotateY(0deg)";
-                    }
-                }
-
-                requestAnimationFrame(renderFrame);
-            }
-            audio.pause();
-            document.body.addEventListener("click", function () {
-                document.body.getElementsByClassName("dialog")[0].style.display = "none";
-                audio.play();
-            });
-            // audio.play();
-            renderFrame();
-        };
+        })();
 
     </script>
 </body>

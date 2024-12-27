@@ -98,7 +98,7 @@
                     [0, 1, 2, 2, 1, 0],
                     [0, 1, 1, 1, 1, 0],
                     [0, 0, 0, 0]
-                ]
+                ];
 
                 var filters = [{
                     name: "hue-rotate",
@@ -140,84 +140,81 @@
                     ele.appendChild(div);
                 }
 
-                var audioCtx = new AudioContext();
-                var analyser = audioCtx.createAnalyser();
-                var source = audioCtx.createMediaElementSource(audio);
-                source.connect(analyser);
-                analyser.connect(audioCtx.destination);
-                analyser.fftSize = 32;
+                var frequencyData;
+                var renderFrame;
 
-                var frequencyData = new Uint8Array(analyser.frequencyBinCount);
-
-                var last_n = 0;
-                var last_change = 0;
-
-                var current_filter = 0;
-
-                var imgs_filters = "";
-
-                function renderFrame() {
-                    analyser.getByteFrequencyData(frequencyData);
-
-                    var n = (frequencyData[8] * 100) / 256;
-                    var diff = last_n - n;
-                    if (diff < 0) diff *= -1;
-                    last_n = n;
-                    last_change--;
-
-                    var imgs = document.body.getElementsByTagName("img");
-
-                    if (diff > 3 && last_change < 0) {
-                        var new_filter = current_filter;
-                        while (new_filter == current_filter) {
-                            new_filter = Math.floor(Math.random() * filters.length);
-                        }
-
-                        last_change = 20;
-                        current_filter = new_filter;
-
-                        var items_to_change = Math.floor((n / 100) * imgs.length);
-                        imgs_filters = "";
-                        while (items_to_change > 0) {
-                            var rnd = Math.floor(Math.random() * imgs.length);
-                            items_to_change--;
-                            imgs_filters += rnd + ",";
-                        }
-                    }
-
-                    var filter = filters[current_filter];
-                    var total = filter.max - filter.min;
-                    var perc = (n / 100) * total;
-                    var filter_n = filter.min + perc;
-
-                    for (var i = 0; i < imgs.length; i++) {
-                        var img = imgs[i];
-                        if (imgs_filters.indexOf(i + ",") != -1) {
-                            img.style.filter = filter.name + "(" + filter_n + filter.symbol + ")";
-                            img.style.transform = "rotateY(180deg)";
-                        } else {
-                            img.style.filter = "none";
-                            img.style.transform = "rotateY(0deg)";
-                        }
-                    }
-
-                    requestAnimationFrame(renderFrame);
-                }
-                audio.pause();
                 document.body.addEventListener("click", function() {
                     document.body.getElementsByClassName("dialog")[0].style.display = "none";
-                
-                    // Create and set up the AudioContext on user interaction
-                    const audioCtx = new AudioContext();
-                    const analyser = audioCtx.createAnalyser();
-                    const source = audioCtx.createMediaElementSource(audio);
+
+                    // Create and set up the AudioContext after user interaction
+                    var audioCtx = new AudioContext();
+                    var analyser = audioCtx.createAnalyser();
+                    var source = audioCtx.createMediaElementSource(audio);
                     source.connect(analyser);
                     analyser.connect(audioCtx.destination);
                     analyser.fftSize = 32;
-                
+
+                    frequencyData = new Uint8Array(analyser.frequencyBinCount);
+
+                    var last_n = 0;
+                    var last_change = 0;
+
+                    var current_filter = 0;
+                    var imgs_filters = "";
+
+                    renderFrame = function() {
+                        analyser.getByteFrequencyData(frequencyData);
+
+                        var n = (frequencyData[8] * 100) / 256;
+                        var diff = last_n - n;
+                        if (diff < 0) diff *= -1;
+                        last_n = n;
+                        last_change--;
+
+                        var imgs = document.body.getElementsByTagName("img");
+
+                        if (diff > 3 && last_change < 0) {
+                            var new_filter = current_filter;
+                            while (new_filter == current_filter) {
+                                new_filter = Math.floor(Math.random() * filters.length);
+                            }
+
+                            last_change = 20;
+                            current_filter = new_filter;
+
+                            var items_to_change = Math.floor((n / 100) * imgs.length);
+                            imgs_filters = "";
+                            while (items_to_change > 0) {
+                                var rnd = Math.floor(Math.random() * imgs.length);
+                                items_to_change--;
+                                imgs_filters += rnd + ",";
+                            }
+                        }
+
+                        var filter = filters[current_filter];
+                        var total = filter.max - filter.min;
+                        var perc = (n / 100) * total;
+                        var filter_n = filter.min + perc;
+
+                        for (var i = 0; i < imgs.length; i++) {
+                            var img = imgs[i];
+                            if (imgs_filters.indexOf(i + ",") != -1) {
+                                img.style.filter = filter.name + "(" + filter_n + filter.symbol + ")";
+                                img.style.transform = "rotateY(180deg)";
+                            } else {
+                                img.style.filter = "none";
+                                img.style.transform = "rotateY(0deg)";
+                            }
+                        }
+
+                        requestAnimationFrame(renderFrame);
+                    };
+
+                    // Play audio and start render frame
+                    if (audioCtx.state === "suspended") {
+                        audioCtx.resume();
+                    }
                     audio.play();
-                
-                    // Start the render frame loop after audio context setup
                     renderFrame();
                 });
             };

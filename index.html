@@ -206,12 +206,20 @@
                 audio.pause();
                 document.body.addEventListener("click", function() {
                     document.body.getElementsByClassName("dialog")[0].style.display = "none";
-                    audioCtx.resume().then(() => {
-                        audio.play();
-                    });
+                
+                    // Create and set up the AudioContext on user interaction
+                    const audioCtx = new AudioContext();
+                    const analyser = audioCtx.createAnalyser();
+                    const source = audioCtx.createMediaElementSource(audio);
+                    source.connect(analyser);
+                    analyser.connect(audioCtx.destination);
+                    analyser.fftSize = 32;
+                
+                    audio.play();
+                
+                    // Start the render frame loop after audio context setup
+                    renderFrame();
                 });
-                // audio.play();
-                renderFrame();
             };
 
             if ('serviceWorker' in navigator) {

@@ -206,7 +206,9 @@
                 audio.pause();
                 document.body.addEventListener("click", function() {
                     document.body.getElementsByClassName("dialog")[0].style.display = "none";
-                    audio.play();
+                    audioCtx.resume().then(() => {
+                        audio.play();
+                    });
                 });
                 // audio.play();
                 renderFrame();
